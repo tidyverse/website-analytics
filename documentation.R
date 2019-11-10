@@ -1,25 +1,22 @@
 library(tidyverse)
 library(lubridate)
-source("api-analytics.R")
+source("utils/analytics.R")
 
-hostnames <- vroom::vroom("hostnames.csv")
+# These really need to be one reported per
 
 # Documentation and articles -------------------------------------------------
 
-ref_pages <- googleAnalyticsR::filter_clause_ga4(operator = "OR", list(
-  googleAnalyticsR::dim_filter("pagePath", "PARTIAL", "/reference/"),
-  googleAnalyticsR::dim_filter("pagePath", "PARTIAL", "/articles/")
-))
-
-topics_raw <- ga_get(
-  dimensions = c("hostname", "pagePath"),
-  dim_filters = ref_pages
+filter_docs <- filter_or(
+  googleAnalyticsR::dim_filter("pagePath", "BEGINS_WITH", "/reference/"),
+  googleAnalyticsR::dim_filter("pagePath", "BEGINS_WITH", "/articles/")
 )
 
+topics_raw <- analytics(c("hostname", "pagePath"), dim_filters = filter_docs)
+
 topics <- topics_raw %>%
-  mutate(site = str_match(hostname, "(.*)\\.(tidyverse|r-lib)\\.org")[, 2]) %>%
-  filter(!is.na(site)) %>%
-  select(site, pagePath, sessions, users) %>%
+  filter(is_tidyverse(hostname)) %>%
+  mutate(package = package_name(hostname), hostname = NULL) %>%
+  select(package, pagePath, sessions, users) %>%
   arrange(desc(sessions))
 
 topics
@@ -30,65 +27,49 @@ topics %>%
 
 # Blog posts ----------------------------------------------------------------
 
-filter_blog <- googleAnalyticsR::filter_clause_ga4(
-  list(
-    googleAnalyticsR::dim_filter("pagePath", "PARTIAL", "/articles/"),
-    googleAnalyticsR::dim_filter("hostname", "EXACT", "www.tidyverse.org")
-  ),
-  operator = "AND"
+filter_blog <- filter_and(
+  googleAnalyticsR::dim_filter("hostname", "EXACT", "www.tidyverse.org"),
+  googleAnalyticsR::dim_filter("pagePath", "BEGINS_WITH", "/articles/")
 )
 
-blog_raw <- ga_get(
-  dimensions = "pagePath",
-  dim_filters = filter_blog
-)
+blog_raw <- analytics("pagePath", dim_filters = filter_blog)
 
 blog_raw %>%
   arrange(desc(sessions)) %>%
   print(n = 20)
 
+# Not sure what we want here? Maybe top articles for last month?
+# Top articles in last year?
+
 # r4ds --------------------------------------------------------------------
 
-filter_r4ds <- googleAnalyticsR::filter_clause_ga4(list(
+filter_r4ds <- filter_or(
   googleAnalyticsR::dim_filter("hostname", "EXACT", "r4ds.had.co.nz")
-))
-
-r4ds_raw <- ga_get(
-  dimensions = "pagePath",
-  dim_filters = filter_r4ds
 )
+
+r4ds_raw <- analytics("pagePath", dim_filters = filter_r4ds)
 
 r4ds_raw %>%
   filter(users > 20) %>%
   arrange(desc(sessions)) %>%
   print(n = 20)
 
+# Trimming anchors and query strings doesn't change overall numbers that much
 r4ds_raw %>%
   mutate(pagePath = str_replace(pagePath, "\\?.*$", "")) %>%
   mutate(pagePath = str_replace(pagePath, "\\#.*$", "")) %>%
   mutate(pagePath = str_replace(pagePath, ".htm$", ".html")) %>%
   count(pagePath, wt = users, sort = TRUE)
 
-
-# Explore by time ---------------------------------------------------------
-
-r4ds_raw <- ga_get(
-  dimensions = c("date", "pagePath"),
-  dim_filters = filter_r4ds
-)
-
-r4ds <- r4ds_raw %>%
-  mutate(pagePath = str_replace(pagePath, "\\?.*$", "")) %>%
-  mutate(week = floor_date(date, "week", week_start = 1))
-
-r4ds_weekly <- r4ds %>%
-  filter(pagePath != "/") %>% # home page isn't that interesting
+# Look at patterns over time:
+# there's not much going on (unsurprisingly)
+r4ds_raw <- analytics_weekly("pagePath", dim_filters = filter_r4ds)
+r4ds_raw %>%
+  mutate(pagePath = fct_lump(pagePath, n = 10, w = sessions)) %>%
   group_by(week, pagePath) %>%
   summarise(sessions = sum(sessions)) %>%
-  filter(sessions > 10)
-
-r4ds_weekly %>%
-  ggplot(aes(week, sessions, group = pagePath)) +
+  ggplot(aes(week, sessions, colour = fct_reorder2(pagePath, week, sessions))) +
   geom_line() +
   geom_point() +
-  scale_y_log10()
+  scale_y_log10() +
+  labs(colour = "path")

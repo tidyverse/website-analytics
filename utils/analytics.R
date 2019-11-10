@@ -7,7 +7,18 @@ googleAuthR::gar_auth(email = TRUE, scopes = scopes)
 
 
 is_tidyverse <- function(x) {
-  str_detect(x, "(\\.tidyverse\\.org|r-lib\\.org|had\\.co\\.nz|r-dbi\\.org)$")
+  str_detect(x, "\\.(tidyverse|r-lib|r-dbi)\\.org$")
+}
+
+package_name <- function(x) {
+  str_match(x, "(.*)\\.(tidyverse|r-lib|r-dbi)\\.org$")[, 2]
+}
+
+filter_or <- function(...) {
+  googleAnalyticsR::filter_clause_ga4(operator = "OR", list(...))
+}
+filter_and <- function(...) {
+  googleAnalyticsR::filter_clause_ga4(operator = "AND", list(...))
 }
 
 # google analytics --------------------------------------------------------
@@ -30,13 +41,14 @@ analytics <- function(
 
 # Get last year of data, starting and ending on a monday.
 analytics_weekly <- function(dimensions = c(), ..., from = NULL, to = today() - 1L) {
-  monday <- function(x) x - (wday(x) - 1)
+  # google analytics week starts on a Sunday
+  sunday <- function(x) x - wday(x) + 1
 
-  to <- monday(to)
+  to <- sunday(to) - 1L # so ends on a Saturday
   if (is.null(from)) {
     from <- to - weeks(52)
   } else {
-    from <- monday(from)
+    from <- sunday(from)
   }
 
   dimensions <- c(dimensions, "year", "week")
