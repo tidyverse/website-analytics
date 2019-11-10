@@ -46,3 +46,12 @@ by_site %>%
     x = NULL,
     y = NULL
   )
+
+daily <- analytics(c("hostname", "date"))
+daily %>%
+  filter(is_tidyverse(hostname)) %>%
+  semi_join(missing_records, by = "hostname") %>%
+  complete(hostname, date, fill = list(users = 0, sessions = 0)) %>%
+  ggplot(aes(date, users)) +
+  geom_line() +
+  facet_wrap(~ hostname, scales = "free_y")
