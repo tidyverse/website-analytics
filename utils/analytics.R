@@ -7,7 +7,7 @@ googleAuthR::gar_auth(email = TRUE, scopes = scopes)
 
 
 is_tidyverse <- function(x) {
-  str_detect(x, "\\.(tidyverse|r-lib|r-dbi)\\.org$")
+  str_detect(x, "\\.(tidyverse\\.org|r-lib\\.org|r-dbi\\.org|had.co.nz)$")
 }
 
 package_name <- function(x) {
