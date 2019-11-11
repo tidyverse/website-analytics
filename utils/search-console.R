@@ -22,12 +22,12 @@ sc_get <- function(dimension, filter = NULL, from = last_month(), to = today()) 
   tibble::as_tibble(out)
 }
 
-sc_get_queries <- function(url, from = last_month(), to = today()) {
+search_queries <- function(url, from = last_month(), to = today()) {
   filter <- paste0("page~~", url)
   sc_get(dimension = "query", filter = filter, from = from, to = to)
 }
 
-sc_get_pages <- function(query, from = last_month(), to = today()) {
+search_pages <- function(query, from = last_month(), to = today()) {
   filter <- paste0("query==", query)
   sc_get(dimension = "page", filter = filter, from = from, to = to)
 }
