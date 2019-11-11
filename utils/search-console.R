@@ -6,30 +6,31 @@ assignInNamespace("check.Url", function(url, ...) url, "searchConsoleR")
 
 # "today" in search console time is 3 days ago
 
-sc_get <- function(dimension, filter = NULL, from = last_month(), to = today()) {
+sc_get <- function(dimension, filter = NULL, to = today() - 3, duration = "1 month", row_limit = 100) {
   # dimension <- rlang::arg_match(dimension, c("query", "date", "country", "device", "page"))
-  today <- function() lubridate::today() - lubridate::days(3)
-  last_month <- function() today() - lubridate::period(months = 1)
+
+  from <- to - as.period(duration)
 
   out <- suppressMessages(searchConsoleR::search_analytics(
     "sc-domain:tidyverse.org",
     dimensions = dimension,
     dimensionFilterExp = filter,
     startDate = from,
-    endDate = to
+    endDate = to,
+    rowLimit = row_limit
   ))
 
   tibble::as_tibble(out)
 }
 
-search_queries <- function(url, from = last_month(), to = today()) {
+search_queries <- function(url, to = today() - 3, duration = "1 month") {
   filter <- paste0("page~~", url)
-  sc_get(dimension = "query", filter = filter, from = from, to = to)
+  sc_get(dimension = "query", filter = filter, to = to, duration = duration)
 }
 
-search_pages <- function(query, from = last_month(), to = today()) {
+search_pages <- function(query, to = today() - 3, duration = "1 month") {
   filter <- paste0("query==", query)
-  sc_get(dimension = "page", filter = filter, from = from, to = to)
+  sc_get(dimension = "page", filter = filter, to = to, duration = duration)
 }
 
 alphabetise <- function(x) {
