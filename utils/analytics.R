@@ -65,4 +65,12 @@ analytics_weekly <- function(dimensions = c(), ..., from = NULL, to = today() - 
     )
 }
 
-
+lump_var <- function(df, var, n = 8) {
+  df %>%
+    mutate(
+      {{var}} := fct_reorder2(fct_lump({{var}}, n = n, w = sessions), week, sessions)
+    ) %>%
+    group_by(week, {{var}}) %>%
+    summarise(sessions = sum(sessions), users = sum(users)) %>%
+    ungroup()
+}

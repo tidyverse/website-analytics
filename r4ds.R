@@ -1,42 +1,32 @@
 library(tidyverse)
 library(lubridate)
-library(googleAnalyticsR)
+source("utils/analytics.R")
 
-ga_auth()
-view_id <- 170811407
+filter_r4ds <- filter_or(
+  googleAnalyticsR::dim_filter("hostname", "EXACT", "r4ds.had.co.nz")
+)
 
-# Trend over time ---------------------------------------------------------
+analytics(dim_filters = filter_r4ds)
 
-trend <- as_tibble(google_analytics(
-  view_id,
-  date_range = c("2019-01-08", "yesterday"),
-  metrics = c("hits", "sessions", "users"),
-  dimensions = "date",
-  dim_filters = filter_clause_ga4(list(dim_filter("hostname", "EXACT", "r4ds.had.co.nz"))),
-  max = -1
-))
-
-trend %>%
-  group_by(week = floor_date(date, "week")) %>%
-  summarise(sessions = sum(sessions), n = n()) %>%
-  filter(n == 7) %>%
-  ggplot(aes(week, sessions)) +
-  geom_line()
-
-# Most popular pages ------------------------------------------------------
-
-pages <- as_tibble(google_analytics(
-  view_id,
-  date_range = c("8daysAgo", "yesterday"),
-  metrics = c("hits", "sessions", "users"),
-  dimensions = "pagePath",
-  dim_filters = filter_clause_ga4(list(dim_filter("hostname", "EXACT", "r4ds.had.co.nz"))),
-  max = -1
-))
-pages
-
-pages %>%
-  mutate(pagePath = str_replace(pagePath, "\\?.+$", "")) %>%
-  count(pagePath, wt = hits, sort = TRUE) %>%
+by_chapter <- analytics("pagePath", dim_filters = filter_r4ds)
+by_chapter %>%
+  arrange(desc(sessions)) %>%
   print(n = 20)
 
+# Trimming anchors and query strings doesn't change overall numbers that much
+collapsed <- by_chapter %>%
+  mutate(pagePath = str_replace(pagePath, "\\?.*$", "")) %>%
+  mutate(pagePath = str_replace(pagePath, "\\#.*$", "")) %>%
+  mutate(pagePath = str_replace(pagePath, ".html?$", "")) %>%
+  mutate(pagePath = str_replace(pagePath, "/index$", "/")) %>%
+  count(pagePath, wt = users, sort = TRUE)
+
+# Look at patterns over time:
+# there's not much going on (unsurprisingly)
+by_chapter_week <- analytics_weekly("pagePath", dim_filters = filter_r4ds)
+by_chapter_week %>%
+  lump_var(pagePath, n = 15) %>%
+  ggplot(aes(week, sessions)) +
+  geom_line() +
+  scale_y_log10() +
+  facet_wrap(~ pagePath)
