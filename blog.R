@@ -3,30 +3,32 @@ library(lubridate)
 source("utils/analytics.R")
 source("utils/search-console.R")
 
-# Need to figure out deal with name change
-filter_blog <- filter_and(
-  googleAnalyticsR::dim_filter("hostname", "EXACT", "www.tidyverse.org"),
+filter_blog <- filter_or(
+  googleAnalyticsR::dim_filter("pagePath", "BEGINS_WITH", "/blog/"),
   googleAnalyticsR::dim_filter("pagePath", "BEGINS_WITH", "/articles/")
 )
 
-analytics(dim_filters = filter_blog)
 search_queries("www.tidyverse.org/articles", duration = "1 year")
 
-by_page <- analytics("pagePath", dim_filters = filter_blog)
+by_page <- analytics(c("hostname", "pagePath"), dim_filters = filter_blog)
+
 by_page %>%
+  filter(hostname == "www.tidyverse.org") %>%
   arrange(desc(sessions)) %>%
   print(n = 20)
 
 # Blog shows fundamentally different temporal pattern:
-by_week <- analytics_weekly(dim_filters = filter_blog)
+by_week <- analytics_weekly("hostname", dim_filters = filter_blog)
 by_week %>%
+  filter(hostname == "www.tidyverse.org") %>%
   ggplot(aes(week, sessions)) +
   geom_line()
 
 # Because the vast majority of blog posts decay expoentially after release
-by_week_page <- analytics_weekly("pagePath", dim_filters = filter_blog)
+by_week_page <- analytics_weekly(c("hostname", "pagePath"), dim_filters = filter_blog)
 
 posts <- by_week_page %>%
+  filter(hostname == "www.tidyverse.org") %>%
   filter(!str_detect(pagePath, fixed("?"))) %>%
   separate(pagePath, c(NA, NA, "year", "month", "title"), "/", remove = FALSE) %>%
   filter(title != "") %>%
