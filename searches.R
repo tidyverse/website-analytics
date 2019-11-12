@@ -7,7 +7,7 @@ sc_get("date")
 sc_get("page")
 
 # How many people are finding tidyverse sites from google over the last year?
-over_time <- sc_get("date", from = last_year())
+over_time <- sc_get("date", duration = "1 year")
 over_time %>% summarise(
   impressions = sum(impressions),
   clicks = sum(clicks)
