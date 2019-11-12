@@ -1,5 +1,4 @@
-library(searchConsoleR)
-searchConsoleR::scr_auth(email = TRUE)
+source("utils/auth.R")
 
 # suppress broken check
 assignInNamespace("check.Url", function(url, ...) url, "searchConsoleR")
